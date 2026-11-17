@@ -7,6 +7,8 @@
   <title>Scattergories Generator Rehashed</title>
   <link rel="icon" type="image/png" href="./dist/rehashed.png">
   <meta name="theme-color" content="#c5e0fc">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./dist/icon-192.png">
   <link rel="stylesheet" href="./dist/style.css">
 </head>
 <body>
@@ -23,17 +25,25 @@
 
   <div class="bottom-links s6">
     <h1 class="bottom-link clickable"><a href="./"><b>Scattergories Rehashed</b></a></h1>
+    <button type="button" class="bottom-link fullscreen-button clickable" v-if="fullscreenSupported"
+            :aria-pressed="isFullscreen ? 'true' : 'false'" @click="toggleFullscreen()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true">
+        <path v-if="!isFullscreen" d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6"/>
+        <path v-else d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6"/>
+      </svg>
+      {{ isFullscreen ? 'Exit Fullscreen' : 'Fullscreen' }}
+    </button>
   </div>
 
   <div class="frame">
-    <div class="game-wrap" :class="this.gameState">
+    <div class="game-wrap" :class="gameState">
       <div class="animation-overlay"></div>
       <div class="game">
         <div class="left-wrap">
 
           <div class="letter-wrap">
             <div class="label">Letter</div>
-            <div class="label-right" v-if="gameState !== IN_GAME"><button @click="getLetter()">Re-roll</button></div>
+            <div class="label-right" v-if="gameState !== GAME.IN_GAME"><button @click="rollLetter()">Re-roll</button></div>
             <div class="letter s4">
               <input class="letter-input" type="text" maxlength="2" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                      :value="currentLetter" :readonly="!canEdit" :tabindex="canEdit ? 0 : -1"
@@ -52,12 +62,12 @@
             <div class="controls-wrap">
               <div class="label"><div class="label-inner">{{ playLabel }}</div></div>
               <div class="controls">
-                <button v-if="gameState !== GAME_OVER" name="button" @click="(gameState === IN_GAME ? pauseGame: startGame)()">
+                <button v-if="gameState !== GAME.GAME_OVER" name="button" @click="(gameState === GAME.IN_GAME ? pauseGame: startGame)()">
                   <div class="button-outer animate-svg-path">
                     <svg width="32px" height="32px" viewBox="6 6 24 24"><path d="M11,10 L18,13.74 18,22.28 11,26 M18,13.74 L26,18 26,18 18,22.28"/></svg>
                   </div>
                 </button>
-                <button v-if="gameState === GAME_OVER" name="button" @click="resetGame()" class="button-play-again">
+                <button v-if="gameState === GAME.GAME_OVER" name="button" @click="resetGame()" class="button-play-again">
                   <svg viewbox="0 512 24 24">&nbsp;<use xlink:href="#refresh-cw"/>&nbsp;</svg>
                 </button>
               </div>
@@ -67,52 +77,23 @@
 
         <div class="words">
           <div class="label categories-main-label">
-            <button class="clickable-label">Categories</button>
+            Categories
+            <select class="topic-select" aria-label="Topic" :value="topic" :disabled="!canEdit"
+                    :title="canEdit ? 'Choose a topic' : 'Restart to change topic'"
+                    @change="setTopic($event.target.value)">
+              <option v-for="t in topics" :value="t.id">{{ t.label }}</option>
+            </select>
           </div>
-          <div class="label-right"><button @click="changeCategoryCount(-1)">-</button> {{ numberOfWords }} <button @click="changeCategoryCount(1)">+</button></div>
+          <div class="label-right"><button @click="changeCategoryCount(-1)">-</button> {{ categoryCount }} <button @click="changeCategoryCount(1)">+</button></div>
 
-          <div class="words-wrap" :class="{'adding': state.adding}">
-            <div class="add-category-wrap">
-              <form @submit.prevent="submitNewCategory()">
-                <input type="text" id="new-category-input" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Enter a new category...">
-                <button type="submit">+</button>
-              </form>
-            </div>
-
-            <div v-if="state.editingLists">
-              <div class="edit-lists-title">Each turn, {{ numberOfWords }} categorie{{ numberOfWords - 1 ? "s" : "" }} are chosen randomly from the list&nbsp;below:</div>
-              <div class="wordlist-word wordlist-controls">
-                <button class="remove-all-button" @click="removeAll()">Remove All</button>
-              </div>
-              <transition-group name="list" tag="div">
-                <div class="wordlist-word" v-for="(word, index) in wordlist" v-if="wordlist.length" :key="word.category">
-                  <div :class="{'custom-word': word.isCustom}">{{ word.category }}<span v-if="word.isCustom" style="opacity: 0.6"> ★</span></div>
-                  <button class="remove-button" @click="removeWord(index)">Remove</button>
-                </div>
-              </transition-group>
-              <div class="wordlist-word empty-message" v-if="!wordlist.length">No Categories. <button class="empty-button" @click="startAdding(true)">Add A New Category</button></div>
-            </div>
-
-            <div class="words-scroller" v-if="!state.editingLists">
-              <div class="word-wrap" v-if="currentWords.length" v-for="(word, index) in currentWords">
+          <div class="words-wrap">
+            <div class="words-scroller">
+              <div class="word-wrap" v-for="(word, index) in currentWords">
                 <div class="number">{{ index + 1 }}</div>
-                <div class="word s6" :style="{'transition-delay': index * 30 + 'ms' }"><span>{{ word.category }}</span></div>
-              </div>
-              <div v-if="!currentWords.length" class="empty-message">
-                <br>You've removed all the categories.<br>
-                <button class="empty-button" style="color: black;" @click="startAdding(true)">Add A Category</button> and restart.<br>
+                <div class="word s6" :style="{'transition-delay': index * 30 + 'ms' }"><span>{{ word }}</span></div>
               </div>
             </div>
           </div>
-
-          <transition name="slide-in">
-            <div v-if="!state.wordlistPristine && wordlist.length && state.editingLists" class="save-button-wrap">
-              <button @click="saveList()" class="save-button">{{ state.isSaving ? "Saving" : "Save List" }}</button>
-            </div>
-            <div v-if="state.wordlistPristine && wordlist.length && state.editingLists && listHash" class="save-button-wrap">
-              <button class="url-button" @click="copyUrl"><span>List URL:</span> <span class="url">swellgarfo.com/scattergories/#{{listHash}}</span></button>
-            </div>
-          </transition>
         </div>
       </div>
 
@@ -163,8 +144,23 @@
       </div>
     </div>
   </transition>
+
+  <transition name="time-modal">
+    <div class="time-modal-backdrop" v-if="state.timeUp" @mousedown.self="closeTimeUp()">
+      <div class="time-modal time-up-modal" role="alertdialog" aria-modal="true" aria-describedby="time-up-text">
+        <div class="time-up-text" id="time-up-text">Times up!</div>
+        <div class="time-modal-actions">
+          <button type="button" class="time-modal-cancel" @click="closeTimeUp()">Close</button>
+          <button type="button" class="time-modal-confirm" id="time-up-confirm" @click="restartFromTimeUp()">New Round</button>
+        </div>
+      </div>
+    </div>
+  </transition>
 </div>
 
-<script src="./dist/bundle.js" charset="utf-8"></script>
+<script src="./dist/vendor/vue.min.js"></script>
+<script src="./dist/vendor/anime.min.js"></script>
+<script src="./dist/categories.js"></script>
+<script src="./dist/app.js"></script>
 </body>
 </html>
