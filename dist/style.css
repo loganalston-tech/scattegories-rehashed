@@ -1,8 +1,8 @@
 :root {
     --primary: #222;
-    --secondary: #c8c5fc;
+    --secondary: #c5e0fc;
     --primary-rgb: 34, 34, 34;
-    --secondary-rgb: 200, 197, 252;
+    --secondary-rgb: 197, 224, 252;
     
     --dither-hover: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAKUlEQVQ4jWNgGAWDHzRAMU7ASEAzPj4DAwMDAxMJriELNOCyeRQMJgAAPMMDBM0EDc8AAAAASUVORK5CYII=");
     --dither-hover-odd: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAgCAYAAAAbifjMAAAAJ0lEQVR42mNgGAWDHzRAMU7AREAzNjbRBtDHC6NgFIyCUTAKBhMAAIYQAwVE1fARAAAAAElFTkSuQmCC");
@@ -340,8 +340,6 @@ body.mounted .game-wrap {
     box-sizing: border-box;
 }
 
-/* Diagonal hash. The layer is one tile taller than the box and slides down by exactly
-   one tile, so the loop is seamless; transform keeps it on the compositor. */
 .letter-wrap::before {
     content: "";
     position: absolute;
@@ -445,8 +443,6 @@ body.mounted .game-wrap {
     white-space: nowrap;
 }
 
-/* Didactic has proportional digits, so give every character a fixed cell:
-   the clock doesn't wobble while the milliseconds tick. */
 .time-char {
     display: inline-block;
     text-align: center;
@@ -1126,10 +1122,6 @@ body.mounted .game-wrap {
     background-size: 100% 100%;
 }
 
-/* ---------------------------------------------------------------------------
-   Time modal
---------------------------------------------------------------------------- */
-
 .time-modal-backdrop {
     display: flex;
     position: fixed;
@@ -1140,7 +1132,7 @@ body.mounted .game-wrap {
     padding: 1rem;
     align-items: center;
     justify-content: center;
-    background: rgba(var(--primary-rgb), 0.6);
+    background: rgba(var(--primary-rgb), 0.3);
     z-index: 2000000;
 }
 
@@ -1149,7 +1141,6 @@ body.mounted .game-wrap {
     max-width: 26rem;
     background: var(--secondary, grey);
     border: 3px solid var(--primary, #000);
-    box-shadow: 0.5rem 0.5rem 0 var(--primary, #000);
     color: var(--primary, #000);
 }
 
